@@ -84,6 +84,7 @@ Docs: https://docs.openclaw.ai
 - Plugins/memory-core: respect configured memory-search embedding concurrency during non-batch indexing so local Ollama embedding backends can serialize indexing instead of flooding the server. Fixes #66822. (#66931) Thanks @oliviareid-svg and @LyraInTheFlesh.
 - Docker/update smoke: keep the package-derived update-channel fixture on package-shipped files and make its UI build stub create the asset the updater verifies. Thanks @vincentkoc.
 - Gateway/models: repair legacy `models.providers.*.api = "openai"` config values to `openai-completions`, and skip providers with future stale API enum values during startup instead of bricking the gateway. Fixes #72477. (#72542) Thanks @JooyoungChoi14 and @obviyus.
+- Cron tool: infer the creating session's agentId for `cron.add` jobs when `agentId` is omitted or passed as undefined, keeping scheduled agentTurn jobs routed to the session agent; #40571 identified the guard bug and supplied the focused regression coverage. Thanks @ChanningYul.
 
 ## 2026.4.26
 
