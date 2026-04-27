@@ -1,7 +1,10 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChannelOutboundAdapter } from "../../channels/plugins/types.js";
 import type { OpenClawConfig } from "../../config/config.js";
-import { forumMessagingForTest } from "../../infra/outbound/targets.test-helpers.js";
+import {
+  forumMessagingForTest,
+  telegramMessagingForTest,
+} from "../../infra/outbound/targets.test-helpers.js";
 import { resetPluginRuntimeStateForTest, setActivePluginRegistry } from "../../plugins/runtime.js";
 import { createOutboundTestPlugin, createTestRegistry } from "../../test-utils/channel-plugins.js";
 
@@ -86,8 +89,20 @@ function createAllowlistAwareStubOutbound(label: string): ChannelOutboundAdapter
   };
 }
 
+const normalizeTelegramTargetForDeliveryTest = vi.fn((raw: string): string | undefined => {
+  const target = telegramMessagingForTest.parseExplicitTarget?.({ raw });
+  if (!target?.to) {
+    return undefined;
+  }
+  const normalizedTo = target.to.toLowerCase();
+  return target.threadId == null
+    ? `telegram:${normalizedTo}`
+    : `telegram:${normalizedTo}:topic:${target.threadId}`;
+});
+
 beforeEach(() => {
   resetPluginRuntimeStateForTest();
+  normalizeTelegramTargetForDeliveryTest.mockClear();
   vi.mocked(resolveOutboundTarget).mockReset();
   setActivePluginRegistry(
     createTestRegistry([
@@ -97,6 +112,18 @@ beforeEach(() => {
           id: "forum",
           outbound: createStubOutbound("Forum"),
           messaging: forumMessagingForTest,
+        }),
+        source: "test",
+      },
+      {
+        pluginId: "telegram",
+        plugin: createOutboundTestPlugin({
+          id: "telegram",
+          outbound: createStubOutbound("Telegram"),
+          messaging: {
+            ...telegramMessagingForTest,
+            normalizeTarget: normalizeTelegramTargetForDeliveryTest,
+          },
         }),
         source: "test",
       },
@@ -473,6 +500,45 @@ describe("resolveDeliveryTarget", () => {
 
     const result = await resolveForAgent({ cfg: makeCfg({ bindings: [] }) });
     expect(result.threadId).toBe("thread-2");
+  });
+
+  it("keeps a session Telegram topic threadId when a bare explicit target matches the topic route", async () => {
+    setLastSessionEntry({
+      sessionId: "sess-telegram-topic",
+      lastChannel: "telegram",
+      lastTo: "-100200300:topic:77",
+      lastThreadId: "77",
+    });
+    normalizeTelegramTargetForDeliveryTest.mockClear();
+
+    const result = await resolveDeliveryTarget(makeCfg({ bindings: [] }), AGENT_ID, {
+      channel: "telegram",
+      to: "-100200300",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.to).toBe("-100200300");
+    expect(result.threadId).toBe(77);
+    expect(normalizeTelegramTargetForDeliveryTest).toHaveBeenCalledWith("-100200300");
+    expect(normalizeTelegramTargetForDeliveryTest).toHaveBeenCalledWith("-100200300:topic:77");
+  });
+
+  it("drops a session Telegram topic threadId when a bare explicit target names a different chat", async () => {
+    setLastSessionEntry({
+      sessionId: "sess-telegram-topic-stale",
+      lastChannel: "telegram",
+      lastTo: "-100200300:topic:77",
+      lastThreadId: "77",
+    });
+
+    const result = await resolveDeliveryTarget(makeCfg({ bindings: [] }), AGENT_ID, {
+      channel: "telegram",
+      to: "-100999999",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.to).toBe("-100999999");
+    expect(result.threadId).toBeUndefined();
   });
 
   it("uses single configured channel when neither explicit nor session channel exists", async () => {
