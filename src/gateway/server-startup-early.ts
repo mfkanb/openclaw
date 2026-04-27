@@ -50,6 +50,7 @@ export async function startGatewayEarlyRuntime(params: {
   chatDeltaLastBroadcastLen: Parameters<
     typeof startGatewayMaintenanceTimers
   >[0]["chatDeltaLastBroadcastLen"];
+  chatSegmentOffsets: Parameters<typeof startGatewayMaintenanceTimers>[0]["chatSegmentOffsets"];
   removeChatRun: Parameters<typeof startGatewayMaintenanceTimers>[0]["removeChatRun"];
   agentRunSeq: Parameters<typeof startGatewayMaintenanceTimers>[0]["agentRunSeq"];
   nodeSendToSession: Parameters<typeof startGatewayMaintenanceTimers>[0]["nodeSendToSession"];
@@ -120,6 +121,7 @@ export async function startGatewayEarlyRuntime(params: {
         chatRunBuffers: params.chatRunBuffers,
         chatDeltaSentAt: params.chatDeltaSentAt,
         chatDeltaLastBroadcastLen: params.chatDeltaLastBroadcastLen,
+        chatSegmentOffsets: params.chatSegmentOffsets,
         removeChatRun: params.removeChatRun,
         agentRunSeq: params.agentRunSeq,
         nodeSendToSession: params.nodeSendToSession,

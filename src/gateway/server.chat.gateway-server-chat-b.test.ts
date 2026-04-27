@@ -178,6 +178,7 @@ describe("gateway server chat", () => {
         chatRunBuffers: new Map(),
         chatDeltaSentAt: new Map(),
         chatDeltaLastBroadcastLen: new Map(),
+        chatSegmentOffsets: new Map(),
         addChatRun: vi.fn(),
         removeChatRun: vi.fn(),
         broadcast: vi.fn(),

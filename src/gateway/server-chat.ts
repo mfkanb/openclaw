@@ -157,6 +157,12 @@ export type ChatRunState = {
   /** Length of text at the time of the last broadcast, used to avoid duplicate flushes. */
   deltaLastBroadcastLen: Map<string, number>;
   abortedRuns: Map<string, number>;
+  /**
+   * Tracks text offset per run for segmented streaming. When a tool-start
+   * event fires, the current buffer length is recorded so subsequent delta
+   * broadcasts can tell segment-aware clients where post-tool text begins.
+   */
+  segmentOffsets: Map<string, number>;
   clear: () => void;
 };
 
@@ -167,6 +173,7 @@ export function createChatRunState(): ChatRunState {
   const deltaSentAt = new Map<string, number>();
   const deltaLastBroadcastLen = new Map<string, number>();
   const abortedRuns = new Map<string, number>();
+  const segmentOffsets = new Map<string, number>();
 
   const clear = () => {
     registry.clear();
@@ -175,6 +182,7 @@ export function createChatRunState(): ChatRunState {
     deltaSentAt.clear();
     deltaLastBroadcastLen.clear();
     abortedRuns.clear();
+    segmentOffsets.clear();
   };
 
   return {
@@ -184,6 +192,7 @@ export function createChatRunState(): ChatRunState {
     deltaSentAt,
     deltaLastBroadcastLen,
     abortedRuns,
+    segmentOffsets,
     clear,
   };
 }
@@ -448,6 +457,7 @@ export function createAgentEventHandler({
     chatRunState.buffers.delete(clientRunId);
     chatRunState.deltaSentAt.delete(clientRunId);
     chatRunState.deltaLastBroadcastLen.delete(clientRunId);
+    chatRunState.segmentOffsets.delete(clientRunId);
   };
 
   const clearPendingTerminalLifecycleError = (runId: string) => {
@@ -671,6 +681,7 @@ export function createAgentEventHandler({
     }
     chatRunState.deltaSentAt.set(clientRunId, now);
     chatRunState.deltaLastBroadcastLen.set(clientRunId, mergedText.length);
+    const segmentOffset = chatRunState.segmentOffsets.get(clientRunId) ?? 0;
     const payload = {
       runId: clientRunId,
       sessionKey,
@@ -680,6 +691,7 @@ export function createAgentEventHandler({
         role: "assistant",
         content: [{ type: "text", text: mergedText }],
         timestamp: now,
+        ...(segmentOffset > 0 && { segmentOffset }),
       },
     };
     broadcast("chat", payload, { dropIfSlow: true });
@@ -731,19 +743,22 @@ export function createAgentEventHandler({
     }
 
     const now = Date.now();
-    const flushPayload = {
+    const rawBuffer = chatRunState.buffers.get(clientRunId) ?? "";
+    const segmentOffset = chatRunState.segmentOffsets.get(clientRunId) ?? 0;
+    const payload = {
       runId: clientRunId,
       sessionKey,
       seq,
       state: "delta" as const,
       message: {
         role: "assistant",
-        content: [{ type: "text", text }],
+        content: [{ type: "text", text: rawBuffer }],
         timestamp: now,
+        ...(segmentOffset > 0 && { segmentOffset }),
       },
     };
-    broadcast("chat", flushPayload, { dropIfSlow: true });
-    nodeSendToSession(sessionKey, "chat", flushPayload);
+    broadcast("chat", payload, { dropIfSlow: true });
+    nodeSendToSession(sessionKey, "chat", payload);
     chatRunState.deltaLastBroadcastLen.set(clientRunId, text.length);
     chatRunState.deltaSentAt.set(clientRunId, now);
   };
@@ -880,6 +895,8 @@ export function createAgentEventHandler({
       // render complete pre-tool text above tool cards (not truncated by delta throttle).
       if (toolPhase === "start" && isControlUiVisible && sessionKey && !isAborted) {
         flushBufferedChatDeltaIfNeeded(sessionKey, clientRunId, evt.runId, evt.seq);
+        const currentBuffer = chatRunState.buffers.get(clientRunId) ?? "";
+        chatRunState.segmentOffsets.set(clientRunId, currentBuffer.length);
       }
       // Always broadcast tool events to registered WS recipients with
       // tool-events capability, regardless of verboseLevel. The verbose

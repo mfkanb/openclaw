@@ -40,6 +40,7 @@ function createMaintenanceTimerDeps() {
     chatRunBuffers: new Map(),
     chatDeltaSentAt: new Map(),
     chatDeltaLastBroadcastLen: new Map(),
+    chatSegmentOffsets: new Map(),
     removeChatRun: () => undefined,
     agentRunSeq: new Map(),
     nodeSendToSession: () => {},
@@ -167,6 +168,7 @@ describe("startGatewayMaintenanceTimers", () => {
     deps.chatRunBuffers.set(runId, "buffer");
     deps.chatDeltaSentAt.set(runId, Date.now() - ABORTED_RUN_TTL_MS - 1);
     deps.chatDeltaLastBroadcastLen.set(runId, 6);
+    deps.chatSegmentOffsets.set(runId, 2);
 
     const timers = startGatewayMaintenanceTimers(deps);
 
@@ -175,6 +177,7 @@ describe("startGatewayMaintenanceTimers", () => {
     expect(deps.chatRunBuffers.get(runId)).toBe("buffer");
     expect(deps.chatDeltaSentAt.has(runId)).toBe(true);
     expect(deps.chatDeltaLastBroadcastLen.get(runId)).toBe(6);
+    expect(deps.chatSegmentOffsets.get(runId)).toBe(2);
 
     stopMaintenanceTimers(timers);
   });
@@ -188,6 +191,7 @@ describe("startGatewayMaintenanceTimers", () => {
     deps.chatRunBuffers.set(runId, "buffer");
     deps.chatDeltaSentAt.set(runId, Date.now() - ABORTED_RUN_TTL_MS - 1);
     deps.chatDeltaLastBroadcastLen.set(runId, 6);
+    deps.chatSegmentOffsets.set(runId, 2);
 
     const timers = startGatewayMaintenanceTimers(deps);
 
@@ -196,6 +200,7 @@ describe("startGatewayMaintenanceTimers", () => {
     expect(deps.chatRunBuffers.has(runId)).toBe(false);
     expect(deps.chatDeltaSentAt.has(runId)).toBe(false);
     expect(deps.chatDeltaLastBroadcastLen.has(runId)).toBe(false);
+    expect(deps.chatSegmentOffsets.has(runId)).toBe(false);
 
     stopMaintenanceTimers(timers);
   });
@@ -210,6 +215,7 @@ describe("startGatewayMaintenanceTimers", () => {
     deps.chatRunBuffers.set(runId, "buffer");
     deps.chatDeltaSentAt.set(runId, Date.now() - ABORTED_RUN_TTL_MS - 1);
     deps.chatDeltaLastBroadcastLen.set(runId, 6);
+    deps.chatSegmentOffsets.set(runId, 2);
 
     const timers = startGatewayMaintenanceTimers(deps);
 
@@ -219,6 +225,7 @@ describe("startGatewayMaintenanceTimers", () => {
     expect(deps.chatRunBuffers.has(runId)).toBe(false);
     expect(deps.chatDeltaSentAt.has(runId)).toBe(false);
     expect(deps.chatDeltaLastBroadcastLen.has(runId)).toBe(false);
+    expect(deps.chatSegmentOffsets.has(runId)).toBe(false);
 
     stopMaintenanceTimers(timers);
   });

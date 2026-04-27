@@ -697,16 +697,37 @@ describe("agent event handler", () => {
     expect(chatCalls).toHaveLength(2);
     const flushedPayload = chatCalls[1]?.[1] as {
       state?: string;
-      message?: { content?: Array<{ text?: string }> };
+      message?: { content?: Array<{ text?: string }>; segmentOffset?: number };
     };
     expect(flushedPayload.state).toBe("delta");
     expect(flushedPayload.message?.content?.[0]?.text).toBe("Before tool expanded");
+    expect(flushedPayload.message?.segmentOffset).toBeUndefined();
     expect(sessionChatCalls(nodeSendToSession)).toHaveLength(2);
+    expect(chatRunState.segmentOffsets.get("client-tool-flush")).toBe(
+      "Before tool expanded".length,
+    );
 
     expect(broadcastToConnIds).toHaveBeenCalledTimes(1);
     const flushCallOrder = broadcast.mock.invocationCallOrder[1] ?? 0;
     const toolCallOrder = broadcastToConnIds.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER;
     expect(flushCallOrder).toBeLessThan(toolCallOrder);
+
+    now = 12_250;
+    handler({
+      runId: "run-tool-flush",
+      seq: 4,
+      stream: "assistant",
+      ts: Date.now(),
+      data: { text: "Before tool expandedAfter tool" },
+    });
+    const postToolChatCalls = chatBroadcastCalls(broadcast);
+    expect(postToolChatCalls).toHaveLength(3);
+    const postToolPayload = postToolChatCalls[2]?.[1] as {
+      message?: { content?: Array<{ text?: string }>; segmentOffset?: number };
+    };
+    expect(postToolPayload.message?.content?.[0]?.text).toBe("Before tool expandedAfter tool");
+    expect(postToolPayload.message?.segmentOffset).toBe("Before tool expanded".length);
+
     nowSpy.mockRestore();
     resetAgentRunContextForTest();
   });

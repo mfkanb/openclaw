@@ -12,7 +12,7 @@ Docs: https://docs.openclaw.ai
 
 ### Fixes
 
-- Gateway/chat: preserve repeated boundary characters in streamed assistant replies so incremental deltas no longer collapse repeated digits, CJK punctuation, markdown emphasis, or table separators. Fixes #63769. Thanks @yon950905 and @mohuaxiao.
+- Gateway/chat: avoid duplicate pre-tool text in streaming WebChat deltas by marking post-tool text segment offsets while preserving full assistant snapshots for existing subscribers. Carries forward #54374, #46985, #47377, and #47399. Thanks @xdhuangyandi, @huangyandi-red, @xiaoliuzhuan, @rocky-d, and @LittleBreak.
 - CLI/startup: read generated startup metadata from the bundled `dist` layout before falling back to live help rendering, so root/browser help and channel-option bootstrap stay on the fast path. Thanks @vincentkoc.
 - CLI/help: treat positional `help` invocations like `openclaw channels help` as help paths for startup gating, avoiding model/auth warmup while preserving positional arguments such as `openclaw docs help`. Thanks @gumadeiras.
 - Matrix/E2EE: stabilize recovery and broken-device QA flows while avoiding Matrix device-cleanup sync races that could leave shutdown-time crypto work running. Thanks @gumadeiras.
